@@ -20,7 +20,7 @@ import javax.crypto.Cipher
 
 class RsaKeystoreWrapper {
     companion object {
-        const val RSA_TRANS = "RSA/ECB/NoPadding"
+        const val RSA_TRANS = "RSA/ECB/PKCS1Padding"
         const val ANDROID_KEYSTORE = "AndroidKeyStore"
         const val KEY_ALIAS = "keyPP"
     }
@@ -120,6 +120,15 @@ class RsaKeystoreWrapper {
         keyStore.setCertificateEntry(alias, cert)
     }
 
+    fun savePublicKey(keyPair: KeyPair, alias: String) {
+        val keystore = createKeyStore()
+        var privateKeyEntry = keystore.getEntry(alias, null) as? KeyStore.PrivateKeyEntry
+        if (privateKeyEntry == null) {
+            privateKeyEntry = KeyStore.PrivateKeyEntry(keyPair.private, arrayOf())
+            keystore.setEntry(alias, privateKeyEntry, null)
+        }
+    }
+
     @TargetApi(23)
     private fun getKeyGenParameterSpec(generator: KeyPairGenerator, alias: String) {
         val builder = KeyGenParameterSpec.Builder(
@@ -129,22 +138,12 @@ class RsaKeystoreWrapper {
             .setKeySize(2048)
             .setUserAuthenticationRequired(false)
             .setBlockModes(KeyProperties.BLOCK_MODE_ECB)
-            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_RSA_PKCS1)
             .setRandomizedEncryptionRequired(false)
             .setDigests(KeyProperties.DIGEST_SHA256)
 
         generator.initialize(builder.build())
     }
-
-    fun savePrivateKey(keyPair: KeyPair, alias: String) {
-        val keystore = createKeyStore()
-        var privateKeyEntry = keystore.getEntry(alias, null) as? KeyStore.PrivateKeyEntry
-        if (privateKeyEntry == null) {
-            privateKeyEntry = KeyStore.PrivateKeyEntry(keyPair.private, arrayOf())
-            keystore.setEntry(alias, privateKeyEntry, null)
-        }
-    }
-
 
     fun recoveryAsymmetricKeyPair(alias: String): KeyPair? {
         val keyStore: KeyStore = createKeyStore()
@@ -159,29 +158,26 @@ class RsaKeystoreWrapper {
         }
     }
 
-    fun recoveryPublic(alias: String): PublicKey {
+    private fun recoveryPublic(alias: String): PublicKey {
         val keyStore = createKeyStore()
-
-        val entry: KeyStore.Entry = keyStore.getEntry(alias, null)
-        val private = (entry as KeyStore.PrivateKeyEntry).privateKey
-        val publicKey = entry.certificate.publicKey
-        return publicKey
+        val entry = keyStore.getEntry(alias, null) as KeyStore.PrivateKeyEntry
+        return entry.certificate.publicKey as RSAPublicKey
     }
 
-    fun recoveryPrivateKey(alias: String): PrivateKey {
+    private fun recoveryPrivateKey(alias: String): PrivateKey {
         val keyStore = createKeyStore()
-        return keyStore.getKey(alias, null) as PrivateKey
+        val entry = keyStore.getEntry(alias, null) as KeyStore.PrivateKeyEntry
+        return entry.privateKey
     }
 
     fun removeKeyStoreKey(alias: String) = createKeyStore().deleteEntry(alias)
 
     fun encrypt(data: String, alias: String): String {
-        val keyStore = createKeyStore()
-        val entry = keyStore.getEntry(alias, null) as KeyStore.PrivateKeyEntry
-        val pubKey: RSAPublicKey = entry.certificate.publicKey as RSAPublicKey
+        val publicKey = recoveryPublic(alias)
         val cipher: Cipher = Cipher.getInstance(RSA_TRANS)
-        cipher.init(Cipher.ENCRYPT_MODE, pubKey)
+        cipher.init(Cipher.ENCRYPT_MODE, publicKey)
         val bytes = cipher.doFinal(data.toByteArray())
+
         Log.d(RsaKeystoreWrapper::class.simpleName, "encrypt: $bytes")
         Log.d(RsaKeystoreWrapper::class.simpleName, "Encodado: ${Base64.encodeToString(bytes, Base64.DEFAULT)}")
         Log.d(RsaKeystoreWrapper::class.simpleName, "Alias: $alias")
@@ -189,12 +185,12 @@ class RsaKeystoreWrapper {
     }
 
     fun decrypt(data: String, alias: String): String {
-        val keyStore = createKeyStore()
-        val entry = keyStore.getEntry(alias, null) as KeyStore.PrivateKeyEntry
+        val privateKey = recoveryPrivateKey(alias)
         val cipher: Cipher = Cipher.getInstance(RSA_TRANS)
-        cipher.init(Cipher.DECRYPT_MODE, entry.privateKey)
+        cipher.init(Cipher.DECRYPT_MODE, privateKey)
         val encryptedData = Base64.decode(data, Base64.DEFAULT)
         val decodedData = cipher.doFinal(encryptedData)
+
         Log.d(RsaKeystoreWrapper::class.simpleName, "decoded Data: ${decodedData}")
         Log.d(RsaKeystoreWrapper::class.simpleName, "Resultado: ${String(decodedData,Charsets.UTF_8)}")
         Log.d(RsaKeystoreWrapper::class.simpleName, "Alias: $alias")

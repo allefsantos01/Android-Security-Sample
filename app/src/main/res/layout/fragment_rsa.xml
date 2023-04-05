@@ -27,6 +27,7 @@
                 android:id="@+id/chipGenerated"
                 android:text="Gerar Chave"
                 android:layout_width="wrap_content"
+                android:checked="true"
                 style="@style/Widget.MaterialComponents.Chip.Filter"
                 android:layout_height="wrap_content"/>
             <com.google.android.material.chip.Chip
@@ -77,7 +78,7 @@
             app:singleSelection="true">
             <com.google.android.material.chip.Chip
                 android:id="@+id/encrypt"
-                android:text="Criptografar com chave privada"
+                android:text="Criptografar com chave publica"
                 android:layout_width="wrap_content"
                 style="@style/Widget.MaterialComponents.Chip.Filter"
                 android:layout_height="wrap_content"/>
@@ -108,7 +109,8 @@
                 android:hint="Texto"
                 android:imeOptions="actionDone"
                 android:inputType="textCapCharacters"
-                android:lines="5" />
+                android:minLines="7"
+                 />
         </com.google.android.material.textfield.TextInputLayout>
 
         <androidx.appcompat.widget.AppCompatTextView
@@ -131,6 +133,14 @@
             android:layout_height="wrap_content"
             app:layout_constraintBottom_toBottomOf="parent"
             android:layout_marginBottom="16dp"
+            />
+
+        <androidx.constraintlayout.widget.Group
+            android:id="@+id/group"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            app:constraint_referenced_ids="input2,result2,chipGroup2"
             />
 
     </androidx.constraintlayout.widget.ConstraintLayout>

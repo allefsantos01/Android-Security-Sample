@@ -10,6 +10,7 @@ import androidx.fragment.app.Fragment
 import com.developer.allefsousa.totop.R
 import com.developer.allefsousa.totop.databinding.FragmentRsaBinding
 import com.developer.allefsousa.totp.cryptography.RsaKeystoreWrapper
+import java.security.KeyPair
 import java.security.interfaces.RSAPublicKey
 
 
@@ -18,6 +19,7 @@ class RSAFragment : Fragment(R.layout.fragment_rsa) {
     private val binding get() = _binding
     private var control = ControlEnum.GENERATE
     private val rsaWrapper = RsaKeystoreWrapper()
+    private val resultCripto = StringBuilder()
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -32,8 +34,16 @@ class RSAFragment : Fragment(R.layout.fragment_rsa) {
 
         binding?.btnGenerate?.setOnClickListener {
             when(control){
-                ControlEnum.GENERATE -> generateKeyPair()
-                ControlEnum.RECOVERY -> recoveKeyPair()
+                ControlEnum.GENERATE -> {
+                    generateKeyPair()
+                    binding?.group?.visibility = View.VISIBLE
+                    binding?.chipGroup2?.check(R.id.encrypt)
+                }
+                ControlEnum.RECOVERY -> {
+                    binding?.result2?.text = ""
+                    binding?.result?.text = ""
+                    recoveKeyPair()
+                }
                 ControlEnum.ENCRYPT -> encrypt()
                 ControlEnum.DECRYPT -> decrypt()
             }
@@ -69,11 +79,27 @@ class RSAFragment : Fragment(R.layout.fragment_rsa) {
     }
 
     private fun decrypt() {
-        rsaWrapper.decrypt(binding?.alias2?.text.toString(),binding?.alias?.text.toString())
+        val decripted = rsaWrapper.decrypt(binding?.alias2?.text.toString(),binding?.alias?.text.toString())
+
+        resultCripto.appendLine("-------------------------------------------------------------------------------")
+        resultCripto.appendLine("")
+        resultCripto.appendLine("Valor descriptografado \n$decripted")
+        resultCripto.appendLine("")
+        resultCripto.appendLine("-------------------------------------------------------------------------------")
+
+        binding?.result2?.text = resultCripto
+
     }
 
     private fun encrypt() {
-        rsaWrapper.encrypt(binding?.alias2?.text.toString(),binding?.alias?.text.toString())
+        val resultEncrypted = rsaWrapper.encrypt(binding?.alias2?.text.toString(),binding?.alias?.text.toString())
+        resultCripto.appendLine("-------------------------------------------------------------------------------")
+        resultCripto.appendLine("")
+        resultCripto.appendLine("Valor Criptografado com a chave publica \n${resultEncrypted}")
+        resultCripto.appendLine("")
+        resultCripto.appendLine("-------------------------------------------------------------------------------")
+        binding?.alias2?.text?.clear()
+        binding?.alias2?.setText(resultEncrypted)
     }
 
     private fun generateKeyPair() {
@@ -86,27 +112,39 @@ class RSAFragment : Fragment(R.layout.fragment_rsa) {
         val stringBuilder = StringBuilder()
         stringBuilder.append("Key Alias = ${binding?.alias?.text.toString()}\n\n\n Chave Privada = ${pair?.private}  \n\n\nChave Publica = ${pair?.public}")
         binding?.result?.text = stringBuilder
-
-        Log.d(RSAFragment::class.java.name, "Chave privada: ${pair?.private}")
-        Log.d(RSAFragment::class.java.name, "Chave privada: ${pair?.public}")
-        Log.d(RSAFragment::class.java.name, "Chave privada: ${pair?.public?.encoded}")
-       // Log.d(RSAFragment::class.java.name, "Chave Publica AA: ${aa.modulus}")
-        //Log.d(RSAFragment::class.java.name, "Chave Publica AA: ${aa.publicExponent}")
-       // Log.d(RSAFragment::class.java.name, "Chave Publica AA: ${Base64.encodeToString(aa.encoded,Base64.DEFAULT)}")
+        resultCripto.appendLine("-------------------------------------------------------------------------------")
+        resultCripto.appendLine("")
+        resultCripto.appendLine("Chave Publica \n${Base64.encodeToString(pair.public?.encoded, Base64.DEFAULT)}")
+        resultCripto.appendLine("")
+        resultCripto.appendLine("-------------------------------------------------------------------------------")
         Log.d(RSAFragment::class.java.name, "Chave Publica AA: ${Base64.encodeToString(pair?.public?.encoded,Base64.DEFAULT)}")
     }
 
     private fun recoveKeyPair() {
         val rsaWrapper = RsaKeystoreWrapper()
         val pair2 = rsaWrapper.recoveryAsymmetricKeyPair(binding?.alias?.text.toString())
-        Log.d(RSAFragment::class.java.name, "Chave publica: ${pair2?.public}")
-        val stringBuilder = StringBuilder()
-        stringBuilder.append("Key= ${binding?.alias?.text.toString()}\n\n\n Chave Privada = ${pair2?.private}  \n\n\nChave Publica = ${pair2?.public}")
-        binding?.result?.text = stringBuilder
 
-        Log.d(RSAFragment::class.java.name, "Chave publica: ${pair2?.public}")
+        pair2?.let {
+             resultCripto.appendLine("-------------------------------------------------------------------------------")
+            resultCripto.appendLine("")
+            resultCripto.appendLine("Chave Publica \n${Base64.encodeToString(it.public?.encoded, Base64.DEFAULT)}")
+            resultCripto.appendLine("")
+            resultCripto.appendLine("-----------------------------------------------------------------------------")
+             val stringBuilder = StringBuilder()
+             stringBuilder.append("Key= ${binding?.alias?.text.toString()}\n\n\n Chave Privada = ${it.private}  \n\n\nChave Publica = ${it.public}")
+             binding?.result?.text = stringBuilder
+            Log.d(RSAFragment::class.java.name, "Chave publica: ${it.public}")
+
+            binding?.group?.visibility = View.VISIBLE
+            binding?.chipGroup2?.check(R.id.encrypt)
+
+        } ?: change()
+
     }
 
+    private fun change() {
+        binding?.result?.text = "Chave não cadastrada!"
+    }
 
 
     override fun onDestroyView() {
