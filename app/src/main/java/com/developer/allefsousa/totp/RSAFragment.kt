@@ -10,6 +10,7 @@ import androidx.fragment.app.Fragment
 import com.developer.allefsousa.totop.R
 import com.developer.allefsousa.totop.databinding.FragmentRsaBinding
 import com.developer.allefsousa.totp.cryptography.RsaKeystoreWrapper
+import com.developer.allefsousa.totp.cryptography.hasMarshmallow
 import java.security.KeyPair
 import java.security.interfaces.RSAPublicKey
 
@@ -79,7 +80,11 @@ class RSAFragment : Fragment(R.layout.fragment_rsa) {
     }
 
     private fun decrypt() {
-        val decripted = rsaWrapper.decrypt(binding?.alias2?.text.toString(),binding?.alias?.text.toString())
+        val decripted = if (hasMarshmallow()){
+            rsaWrapper.decrypt(binding?.alias2?.text.toString(),binding?.alias?.text.toString())
+        }else{
+            rsaWrapper.decrypt(binding?.alias2?.text.toString(),rsaWrapper.storeKeyPair.private)
+        }
 
         resultCripto.appendLine("-------------------------------------------------------------------------------")
         resultCripto.appendLine("")
@@ -93,7 +98,11 @@ class RSAFragment : Fragment(R.layout.fragment_rsa) {
 
     private fun encrypt() {
         //val resulSing = rsaWrapper.signData(binding?.alias2?.text.toString(),binding?.alias?.text.toString())
-        val resultEncrypted = rsaWrapper.encrypt(binding?.alias2?.text.toString(),binding?.alias?.text.toString())
+        val resultEncrypted  =if (hasMarshmallow()){
+            rsaWrapper.encrypt(binding?.alias2?.text.toString(),binding?.alias?.text.toString())
+        }else{
+            rsaWrapper.encrypt(binding?.alias2?.text.toString(),rsaWrapper.storeKeyPair.public)
+        }
         resultCripto.appendLine("-------------------------------------------------------------------------------")
         resultCripto.appendLine("")
         resultCripto.appendLine("Valor Criptografado com a chave publica \n${resultEncrypted}")
@@ -107,9 +116,6 @@ class RSAFragment : Fragment(R.layout.fragment_rsa) {
     private fun generateKeyPair() {
         val pair = rsaWrapper.createAsymmetricKeyPair(binding?.alias?.text.toString())
         Log.d(RSAFragment::class.java.name, "Chave publica: ${pair?.public}")
-
-        //val aa = rsaWrapper.recoveryPublic(binding?.alias.toString()) as RSAPublicKey
-        //rsaWrapper.savePrivateKey(pair,binding?.alias?.text.toString())
 
         val stringBuilder = StringBuilder()
         stringBuilder.append("Key Alias = ${binding?.alias?.text.toString()}\n\n\n Chave Privada = ${pair?.private}  \n\n\nChave Publica = ${pair?.public}")

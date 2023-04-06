@@ -29,6 +29,7 @@ class RsaKeystoreWrapper {
     }
 
     private var signatureResult: String = ""
+     var storeKeyPair = KeyPair(null,null)
 
 
     private fun createKeyStore(): KeyStore {
@@ -49,12 +50,14 @@ class RsaKeystoreWrapper {
             generator = KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_RSA)
             generator.initialize(2048)
             val keypar = generator.generateKeyPair()
+             storeKeyPair = keypar
              Log.d(RsaKeystoreWrapper::class.simpleName, "Publica: ${keypar.public}")
              Log.d(RsaKeystoreWrapper::class.simpleName, "Publica Encoded: ${Base64.encodeToString(keypar.public.encoded,Base64.DEFAULT)}")
              Log.d(RsaKeystoreWrapper::class.simpleName, "Privada: ${keypar.private}")
              Log.d(RsaKeystoreWrapper::class.simpleName, "Private encoded: ${Base64.encodeToString(keypar.private.encoded,Base64.DEFAULT)}")
 
              // salvar no keystore e recuperar
+             //saveKeyOldVersion(keypar,alias)
              keypar
          }
 
@@ -79,7 +82,7 @@ class RsaKeystoreWrapper {
         return result
     }
 
-    fun savePublicKey(keyPair: KeyPair, alias: String) {
+    fun saveKeyOldVersion(keyPair: KeyPair, alias: String) {
         val keystore = createKeyStore()
         var privateKeyEntry = keystore.getEntry(alias, null) as? KeyStore.PrivateKeyEntry
         if (privateKeyEntry == null) {
@@ -130,14 +133,13 @@ class RsaKeystoreWrapper {
     fun removeKeyStoreKey(alias: String) = createKeyStore().deleteEntry(alias)
 
     fun encrypt(data: String, publicKey: PublicKey): String {
-
         val cipher: Cipher = Cipher.getInstance(RSA_TRANS)
         cipher.init(Cipher.ENCRYPT_MODE, publicKey)
         val bytes = cipher.doFinal(data.toByteArray())
+        return Base64.encodeToString(bytes, Base64.DEFAULT)
 
         Log.d(RsaKeystoreWrapper::class.simpleName, "encrypt: $bytes")
         Log.d(RsaKeystoreWrapper::class.simpleName, "Encodado: ${Base64.encodeToString(bytes, Base64.DEFAULT)}")
-        return Base64.encodeToString(bytes, Base64.DEFAULT)
     }
 
     fun encrypt(data: String, alias: String): String {
@@ -163,6 +165,17 @@ class RsaKeystoreWrapper {
         Log.d(RsaKeystoreWrapper::class.simpleName, "decoded Data: ${decodedData}")
         Log.d(RsaKeystoreWrapper::class.simpleName, "Resultado: ${String(decodedData,Charsets.UTF_8)}")
         Log.d(RsaKeystoreWrapper::class.simpleName, "Alias: $alias")
+        return String(decodedData)
+    }
+
+    fun decrypt(data: String, privateKey: PrivateKey): String {
+        val cipher: Cipher = Cipher.getInstance(RSA_TRANS)
+        cipher.init(Cipher.DECRYPT_MODE, privateKey)
+        val encryptedData = Base64.decode(data, Base64.DEFAULT)
+        val decodedData = cipher.doFinal(encryptedData)
+
+        Log.d(RsaKeystoreWrapper::class.simpleName, "decoded Data: ${decodedData}")
+        Log.d(RsaKeystoreWrapper::class.simpleName, "Resultado: ${String(decodedData,Charsets.UTF_8)}")
         return String(decodedData)
     }
 
