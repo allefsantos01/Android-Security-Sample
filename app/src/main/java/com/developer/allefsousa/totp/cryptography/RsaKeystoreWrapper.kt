@@ -8,12 +8,15 @@ import android.security.keystore.KeyProperties
 import android.security.keystore.UserNotAuthenticatedException
 import android.util.Base64
 import android.util.Log
+import androidx.annotation.RequiresApi
 import java.io.ByteArrayInputStream
 import java.security.*
+import java.security.KeyStore.TrustedCertificateEntry
 import java.security.cert.Certificate
 import java.security.cert.CertificateFactory
 import java.security.cert.X509Certificate
 import java.security.interfaces.RSAPublicKey
+import java.security.spec.X509EncodedKeySpec
 import java.util.*
 import javax.crypto.Cipher
 
@@ -37,87 +40,43 @@ class RsaKeystoreWrapper {
     fun createAsymmetricKeyPair(alias: String): KeyPair {
         val generator: KeyPairGenerator
 
-        if (hasMarshmallow()) {
+         return if (hasMarshmallow()) {
             generator = KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_RSA, ANDROID_KEYSTORE)
-           getKeyGenParameterSpec(generator, alias)
+            getKeyGenParameterSpec(generator, alias)
+            generator.generateKeyPair()
+
         } else {
             generator = KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_RSA)
             generator.initialize(2048)
-        }
+            val keypar = generator.generateKeyPair()
+             Log.d(RsaKeystoreWrapper::class.simpleName, "Publica: ${keypar.public}")
+             Log.d(RsaKeystoreWrapper::class.simpleName, "Publica Encoded: ${Base64.encodeToString(keypar.public.encoded,Base64.DEFAULT)}")
+             Log.d(RsaKeystoreWrapper::class.simpleName, "Privada: ${keypar.private}")
+             Log.d(RsaKeystoreWrapper::class.simpleName, "Private encoded: ${Base64.encodeToString(keypar.private.encoded,Base64.DEFAULT)}")
 
-        return generator.generateKeyPair()
+             // salvar no keystore e recuperar
+             keypar
+         }
+
     }
 
-    @TargetApi(23)
-    fun signData(data: String, alias: String): String {
-        try {
-            //We get the Keystore instance
-            val keyStore: KeyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply {
-                load(null)
-            }
+    // TODO: A chave PUblica do backend vai ser salva no armazenamento interno seguro pois no keystore não é possivel armazenar
+    fun saveServerPublicKey(data: String, publicKey: String): String {
 
-            //Retrieves the private key from the keystore
-            val privateKey: PrivateKey = keyStore.getKey(alias, null) as PrivateKey
+        // logica de salvar no security sharedPreferences
 
-            //We sign the data with the private key. We use RSA algorithm along SHA-256 digest algorithm
-            val signature: ByteArray? = Signature.getInstance("SHA256withRSA").run {
-                initSign(privateKey)
-                update(data.toByteArray())
-                sign()
-            }
+        val bytes = Base64.decode(publicKey,Base64.DEFAULT)
+        val keySpec = X509EncodedKeySpec(bytes)
+            val keyFactory = KeyFactory.getInstance("RSA","BC")
+        val public = keyFactory.generatePublic(keySpec)
+        val result = encrypt(data,public)
 
-            if (signature != null) {
-                //We encode and store in a variable the value of the signature
-                signatureResult = Base64.encodeToString(signature, Base64.DEFAULT)
-                return signatureResult
-            }
 
-        } catch (e: UserNotAuthenticatedException) {
-            throw RuntimeException(e)
-            //Exception thrown when the user has not been authenticated.
-            //showAuthenticationScreen()
-        } catch (e: KeyPermanentlyInvalidatedException) {
-            throw RuntimeException(e)
-            //Exception thrown when the key has been invalidated for example when lock screen has been disabled.
-        } catch (e: Exception) {
-            throw RuntimeException(e)
-        }
-        return ""
-    }
-
-    fun verifyData(data: String, alias: String): Boolean {
-        //We get the Keystore instance
-        val keyStore: KeyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply {
-            load(null)
-        }
-
-        //We get the certificate from the keystore
-        val certificate: Certificate? = keyStore.getCertificate(alias)
-
-        if (certificate != null) {
-            //We decode the signature value
-            val signature: ByteArray = Base64.decode(signatureResult, Base64.DEFAULT)
-
-            //We check if the signature is valid. We use RSA algorithm along SHA-256 digest algorithm
-            val isValid: Boolean = Signature.getInstance("SHA256withRSA").run {
-                initVerify(certificate)
-                update(data.toByteArray())
-                verify(signature)
-            }
-
-            return isValid
-        }
-        return false
-    }
-
-    fun saveServerPublicKey(alias: String, publicKey: String) {
-        val keyStore: KeyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply {
-            load(null)
-        }
-        val cf: CertificateFactory = CertificateFactory.getInstance("X.509")
-        val cert: X509Certificate =
-            cf.generateCertificate(ByteArrayInputStream(publicKey.toByteArray())) as X509Certificate
-        keyStore.setCertificateEntry(alias, cert)
+        val valor = Base64.encodeToString(public.encoded,Base64.DEFAULT)
+        Log.d(RsaKeystoreWrapper::class.simpleName, "CriptografiaResultado: $result")
+        Log.d(RsaKeystoreWrapper::class.simpleName, "saveServerPublicKey: $public")
+        Log.d(RsaKeystoreWrapper::class.simpleName, "Key Encoded: $valor")
+        return result
     }
 
     fun savePublicKey(keyPair: KeyPair, alias: String) {
@@ -131,13 +90,11 @@ class RsaKeystoreWrapper {
 
     @TargetApi(23)
     private fun getKeyGenParameterSpec(generator: KeyPairGenerator, alias: String) {
-        val builder = KeyGenParameterSpec.Builder(
-            alias,
-            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
-        )
+        val builder = KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
             .setKeySize(2048)
             .setUserAuthenticationRequired(false)
             .setBlockModes(KeyProperties.BLOCK_MODE_ECB)
+            .setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PKCS1)
             .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_RSA_PKCS1)
             .setRandomizedEncryptionRequired(false)
             .setDigests(KeyProperties.DIGEST_SHA256)
@@ -158,7 +115,7 @@ class RsaKeystoreWrapper {
         }
     }
 
-    private fun recoveryPublic(alias: String): PublicKey {
+    fun recoveryPublic(alias: String): PublicKey {
         val keyStore = createKeyStore()
         val entry = keyStore.getEntry(alias, null) as KeyStore.PrivateKeyEntry
         return entry.certificate.publicKey as RSAPublicKey
@@ -172,7 +129,19 @@ class RsaKeystoreWrapper {
 
     fun removeKeyStoreKey(alias: String) = createKeyStore().deleteEntry(alias)
 
+    fun encrypt(data: String, publicKey: PublicKey): String {
+
+        val cipher: Cipher = Cipher.getInstance(RSA_TRANS)
+        cipher.init(Cipher.ENCRYPT_MODE, publicKey)
+        val bytes = cipher.doFinal(data.toByteArray())
+
+        Log.d(RsaKeystoreWrapper::class.simpleName, "encrypt: $bytes")
+        Log.d(RsaKeystoreWrapper::class.simpleName, "Encodado: ${Base64.encodeToString(bytes, Base64.DEFAULT)}")
+        return Base64.encodeToString(bytes, Base64.DEFAULT)
+    }
+
     fun encrypt(data: String, alias: String): String {
+
         val publicKey = recoveryPublic(alias)
         val cipher: Cipher = Cipher.getInstance(RSA_TRANS)
         cipher.init(Cipher.ENCRYPT_MODE, publicKey)

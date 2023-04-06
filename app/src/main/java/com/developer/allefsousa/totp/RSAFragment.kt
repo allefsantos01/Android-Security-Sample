@@ -92,6 +92,7 @@ class RSAFragment : Fragment(R.layout.fragment_rsa) {
     }
 
     private fun encrypt() {
+        //val resulSing = rsaWrapper.signData(binding?.alias2?.text.toString(),binding?.alias?.text.toString())
         val resultEncrypted = rsaWrapper.encrypt(binding?.alias2?.text.toString(),binding?.alias?.text.toString())
         resultCripto.appendLine("-------------------------------------------------------------------------------")
         resultCripto.appendLine("")
@@ -100,6 +101,7 @@ class RSAFragment : Fragment(R.layout.fragment_rsa) {
         resultCripto.appendLine("-------------------------------------------------------------------------------")
         binding?.alias2?.text?.clear()
         binding?.alias2?.setText(resultEncrypted)
+
     }
 
     private fun generateKeyPair() {

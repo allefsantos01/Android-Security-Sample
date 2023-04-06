@@ -108,7 +108,7 @@
                 android:layout_height="wrap_content"
                 android:hint="Texto"
                 android:imeOptions="actionDone"
-                android:inputType="textCapCharacters"
+                android:inputType="textMultiLine"
                 android:minLines="7"
                  />
         </com.google.android.material.textfield.TextInputLayout>

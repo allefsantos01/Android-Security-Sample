@@ -18,18 +18,19 @@ class HomeActivity : AppCompatActivity(com.developer.allefsousa.totop.R.layout.a
         setContentView(binding.root)
 
         funSetupFirst()
-        binding.tabLayout.addOnTabSelectedListener(object :TabLayout.OnTabSelectedListener{
+        binding.tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab?) {
-                when(tab?.position){
-                    0 -> openActivity(GeneratorFragment.newInstance())
+                when (tab?.position) {
+                    0 -> openFragment(GeneratorFragment.newInstance())
 
-                    1 -> openActivity(RSAFragment.newInstance())
-                    2-> {
-
-                    }
-                    3-> {
+                    1 -> openFragment(RSAFragment.newInstance())
+                    2 -> {
 
                     }
+                    3 -> {
+
+                    }
+                    4 -> openFragment(ReceiveRSAServerFragment.newInstance())
                 }
 
             }
@@ -41,10 +42,10 @@ class HomeActivity : AppCompatActivity(com.developer.allefsousa.totop.R.layout.a
     }
 
     private fun funSetupFirst() {
-        openActivity(GeneratorFragment())
+        openFragment(GeneratorFragment())
     }
 
-    fun openActivity(nameScreen:Fragment){
+    fun openFragment(nameScreen: Fragment) {
         val manager: FragmentManager = supportFragmentManager
         val transaction: FragmentTransaction = manager.beginTransaction()
         transaction.replace(binding.frag.id, nameScreen)
